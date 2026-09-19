@@ -49,9 +49,62 @@ def _eval_node(node) -> float | None:
 
     return None
 
+def extract_numbers(expr: str) -> list[float] | None:
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError:
+        return None
+
+    numbers = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+                numbers.append(float(node.value))
+            else:
+                return None
+    return numbers
+
+
+def uses_numbers_exactly(expr: str, allowed: list[int]) -> bool:
+    used = extract_numbers(expr)
+    if used is None:
+        return False
+    return sorted(used) == sorted(float(n) for n in allowed)
+
+def reward(completion: str, numbers: list[int], target: int) -> float:
+    answer = extract_answer(completion)
+    if answer is None:
+        return 0.0
+
+    value = safe_eval(answer)
+    if value is None:
+        return 0.1
+
+    if not uses_numbers_exactly(answer, numbers):
+        return 0.3
+
+    if abs(value - target) < 1e-6:
+        return 1.0
+    return 0.5
+
+import random
+
+def make_problem(rng: random.Random, n_numbers: int = 4) -> tuple[list[int], int]:
+    while True:
+        numbers = [rng.randint(1, 20) for _ in range(n_numbers)]
+        value = float(numbers[0])
+        for n in numbers[1:]:
+            op = rng.choice(["+", "-", "*"])
+            if op == "+":
+                value += n
+            elif op == "-":
+                value -= n
+            else:
+                value *= n
+        if 10 <= value <= 200:
+            return numbers, int(value)
+
 if __name__ == "__main__":
-    print(safe_eval("9 * 5 + 10 * 2"))      # 65.0
-    print(safe_eval("(10 + 9) * 5"))        # 95.0
-    print(safe_eval("10 / 0"))              # None
-    print(safe_eval("__import__('os')"))    # None
-    print(safe_eval("9 * 5 +"))             # None
+    rng = random.Random(0)
+    for _ in range(5):
+        print(make_problem(rng))
