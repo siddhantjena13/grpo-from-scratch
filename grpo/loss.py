@@ -8,13 +8,11 @@ def get_logprobs(model, input_ids, attention_mask):
     shifted_logits = logits[:, :-1, :]
     shifted_ids = input_ids[:, 1:]
 
-    log_probs = F.log_softmax(shifted_logits, dim=-1)
-
-    token_logprobs = torch.gather(
-        log_probs, dim=-1, index=shifted_ids.unsqueeze(-1)
+    selected = torch.gather(
+        shifted_logits, dim=-1, index=shifted_ids.unsqueeze(-1)
     ).squeeze(-1)
 
-    return token_logprobs
+    return selected - torch.logsumexp(shifted_logits, dim=-1)
 
 def build_completion_mask(input_ids, prompt_len, pad_token_id):
     B, T = input_ids.shape
