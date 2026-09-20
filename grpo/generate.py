@@ -17,7 +17,10 @@ def load_model_and_tokenizer(model_name=MODEL_NAME):
     else:
         device = "cpu"
 
-    dtype = torch.bfloat16 if device == "cuda" else torch.float32
+    if device == "cuda" and torch.cuda.is_bf16_supported():
+        dtype = torch.bfloat16
+    else:
+        dtype = torch.float32
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.padding_side = "left"
