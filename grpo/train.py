@@ -48,21 +48,6 @@ def rollout(policy, tokenizer, numbers, target, G=4, max_new_tokens=400):
         "texts": out["texts"],
     }
 
-if __name__ == "__main__":
-    policy, ref, tokenizer, optimizer = setup()
-
-    rng = random.Random(0)
-    numbers, target = make_problem(rng)
-    print("problem:", numbers, "->", target)
-
-    r = rollout(policy, tokenizer, numbers, target, G=4, max_new_tokens=200)
-
-    print("sequences:  ", r["sequences"].shape)
-    print("mask:       ", r["mask"].shape)
-    print("old_logprobs:", r["old_logprobs"].shape)
-    print("tokens per completion:", r["mask"].sum(dim=1).tolist())
-    print("rewards:", r["rewards"])
-    print("\n--- sample ---\n", r["texts"][0][:300])
 
 def update(policy, ref, optimizer, batch, G, beta=0.04, clip_eps=0.2):
     advantages = compute_advantages(batch["rewards"], G)
@@ -84,3 +69,31 @@ def update(policy, ref, optimizer, batch, G, beta=0.04, clip_eps=0.2):
     optimizer.step()
 
     return loss.item(), grad_norm.item()
+
+def train(num_steps=50, G=4, max_new_tokens=200, seed=0, log_every=1):
+    policy, ref, tokenizer, optimizer = setup()
+    rng = random.Random(seed)
+
+    for step in range(num_steps):
+        numbers, target = make_problem(rng)
+        batch = rollout(policy, tokenizer, numbers, target,
+                        G=G, max_new_tokens=max_new_tokens)
+        loss, grad_norm = update(policy, ref, optimizer, batch, G=G)
+
+        rewards = batch["rewards"]
+        lengths = batch["mask"].sum(dim=1)
+        degenerate = len(set(rewards)) == 1
+
+        if step % log_every == 0:
+            print(
+                f"step {step:3d} | "
+                f"reward {sum(rewards)/len(rewards):.3f} | "
+                f"max {max(rewards):.2f} | "
+                f"loss {loss:+.4f} | "
+                f"grad {grad_norm:.2f} | "
+                f"len {lengths.float().mean():.0f} | "
+                f"{'FLAT' if degenerate else '    '}"
+            )
+    
+if __name__ == "__main__":
+    train(num_steps=3, G=4, max_new_tokens=200)
