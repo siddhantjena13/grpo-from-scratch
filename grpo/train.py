@@ -47,3 +47,40 @@ def rollout(policy, tokenizer, numbers, target, G=4, max_new_tokens=400):
         "rewards": rewards,
         "texts": out["texts"],
     }
+
+if __name__ == "__main__":
+    policy, ref, tokenizer, optimizer = setup()
+
+    rng = random.Random(0)
+    numbers, target = make_problem(rng)
+    print("problem:", numbers, "->", target)
+
+    r = rollout(policy, tokenizer, numbers, target, G=4, max_new_tokens=200)
+
+    print("sequences:  ", r["sequences"].shape)
+    print("mask:       ", r["mask"].shape)
+    print("old_logprobs:", r["old_logprobs"].shape)
+    print("tokens per completion:", r["mask"].sum(dim=1).tolist())
+    print("rewards:", r["rewards"])
+    print("\n--- sample ---\n", r["texts"][0][:300])
+
+def update(policy, ref, optimizer, batch, G, beta=0.04, clip_eps=0.2):
+    advantages = compute_advantages(batch["rewards"], G)
+    advantages = torch.tensor(advantages, device=policy.device, dtype=torch.float32)
+
+    with torch.no_grad():
+        ref_logprobs = get_logprobs(ref, batch["sequences"], batch["attention_mask"])
+
+    new_logprobs = get_logprobs(policy, batch["sequences"], batch["attention_mask"])
+
+    loss = grpo_loss(
+        new_logprobs, batch["old_logprobs"], ref_logprobs,
+        advantages, batch["mask"], clip_eps=clip_eps, beta=beta,
+    )
+
+    optimizer.zero_grad()
+    loss.backward()
+    grad_norm = torch.nn.utils.clip_grad_norm_(policy.parameters(), max_norm=1.0)
+    optimizer.step()
+
+    return loss.item(), grad_norm.item()

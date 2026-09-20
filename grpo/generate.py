@@ -55,9 +55,14 @@ def generate(model, tokenizer, question, G=4, max_new_tokens=400, temperature=1.
         )
 
     prompt_len = inputs["input_ids"].shape[1]
-    completion_ids = outputs[:, prompt_len:]
 
-    return [tokenizer.decode(row, skip_special_tokens=True) for row in completion_ids]
+    return {
+        "sequences": outputs,                                   # (G, T) prompt + completion
+        "attention_mask": (outputs != tokenizer.pad_token_id).long(),
+        "prompt_len": prompt_len,
+        "texts": [tokenizer.decode(row[prompt_len:], skip_special_tokens=True)
+                  for row in outputs],
+    }
 
 if __name__ == "__main__":
     model, tokenizer = load_model_and_tokenizer()
