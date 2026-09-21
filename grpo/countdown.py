@@ -108,3 +108,6 @@ if __name__ == "__main__":
     rng = random.Random(0)
     for _ in range(5):
         print(make_problem(rng))
+
+def binary_reward(text, numbers, target):
+    return 1.0 if reward(text, numbers, target) == 1.0 else 0.0

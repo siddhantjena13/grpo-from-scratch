@@ -6,7 +6,7 @@ import random
 import torch
 
 from grpo.generate import load_model_and_tokenizer, generate, PROMPT_TEMPLATE
-from grpo.countdown import reward, make_problem
+from grpo.countdown import reward, binary_reward, make_problem
 from grpo.advantages import compute_advantages
 from grpo.loss import get_logprobs, build_completion_mask, grpo_loss
 
@@ -28,14 +28,15 @@ def setup(lr=1e-6):
     return policy, ref, tokenizer, optimizer
 
 
-def rollout(policy, tokenizer, numbers, target, G=4, max_new_tokens=400):
+def rollout(policy, tokenizer, numbers, target, G=4, max_new_tokens=400, reward_mode="partial"):
     question = PROMPT_TEMPLATE.format(
         numbers=", ".join(str(n) for n in numbers), target=target
     )
 
     out = generate(policy, tokenizer, question, G=G, max_new_tokens=max_new_tokens)
 
-    rewards = [reward(t, numbers, target) for t in out["texts"]]
+    score = binary_reward if reward_mode == "binary" else reward
+    rewards = [score(t, numbers, target) for t in out["texts"]]
 
     mask = build_completion_mask(
         out["sequences"], out["prompt_len"], tokenizer.pad_token_id
@@ -105,6 +106,7 @@ def train(
     beta=0.04,
     clip_eps=0.2,
     lr=1e-6,
+    reward_mode="partial",
     run_name="baseline",
     runs_root="runs",
 ):
@@ -119,6 +121,7 @@ def train(
         "beta": beta,
         "clip_eps": clip_eps,
         "lr": lr,
+        "reward_mode": reward_mode,
         "run_name": run_name,
     }
     with open(f"{out_dir}/config.json", "w") as f:
@@ -133,7 +136,8 @@ def train(
     for step in range(num_steps):
         numbers, target = make_problem(rng)
         batch = rollout(
-            policy, tokenizer, numbers, target, G=G, max_new_tokens=max_new_tokens
+            policy, tokenizer, numbers, target, G=G, max_new_tokens=max_new_tokens,
+            reward_mode=reward_mode,
         )
         loss, grad_norm = update(
             policy, ref, optimizer, batch, G=G, beta=beta, clip_eps=clip_eps
@@ -176,4 +180,4 @@ def train(
 
 
 if __name__ == "__main__":
-    train(num_steps=2, G=8, max_new_tokens=300, run_name="memtest")
+    train(num_steps=3, G=4, max_new_tokens=200, run_name="smoke")

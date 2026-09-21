@@ -1,3 +1,4 @@
+import sys
 import random
 import torch
 
@@ -10,10 +11,19 @@ SEED = 1234
 
 
 def main():
+    ckpt_path = sys.argv[1] if len(sys.argv) > 1 else None
+    label = "after" if ckpt_path else "before"
+
+    torch.manual_seed(SEED)
     model, tokenizer = load_model_and_tokenizer()
+    if ckpt_path:
+        ckpt = torch.load(ckpt_path, map_location=model.device)
+        model.load_state_dict(ckpt["model"])
+        print(f"loaded {ckpt_path} (trained {ckpt['step'] + 1} steps)")
+
     rng = random.Random(SEED)
 
-    lines = ["# Completions before training\n"]
+    lines = [f"# Completions {label} training\n"]
     lines.append(f"Model: Qwen/Qwen2.5-0.5B-Instruct  \n")
     lines.append(f"Eval seed: {SEED}, {N_PROBLEMS} problems, G={G}\n")
 
@@ -39,7 +49,7 @@ def main():
     solve_rate = sum(r == 1.0 for r in all_rewards) / len(all_rewards)
     lines.insert(3, f"\n**Mean reward: {mean:.3f}  |  Solve rate: {solve_rate:.1%}**\n")
 
-    with open("results/completions_before.md", "w") as f:
+    with open(f"results/completions_{label}.md", "w") as f:
         f.writelines(lines)
 
     print(f"\nmean reward {mean:.3f} | solve rate {solve_rate:.1%}")
