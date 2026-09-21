@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=grpo-baseline
-#SBATCH --account=stf
-#SBATCH --partition=ckpt-all
-#SBATCH --gpus=a40:1
+#SBATCH --account=socialrl
+#SBATCH --partition=gpu-l40s
+#SBATCH --gpus=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=8:00:00
