@@ -176,4 +176,4 @@ def train(
 
 
 if __name__ == "__main__":
-    train(num_steps=3, G=4, max_new_tokens=200, run_name="smoke")
+    train(num_steps=2, G=8, max_new_tokens=300, run_name="memtest")
