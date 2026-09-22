@@ -13,4 +13,4 @@ cd /gscratch/stf/$USER/grpo-from-scratch
 export HF_HOME=/gscratch/stf/$USER/hf_cache
 export UV_CACHE_DIR=/gscratch/stf/$USER/cache/uv
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-uv run python -m grpo.train_cli "$1"
+uv run python -m grpo.train_cli "$@"

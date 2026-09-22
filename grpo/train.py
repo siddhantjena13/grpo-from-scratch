@@ -107,6 +107,7 @@ def train(
     clip_eps=0.2,
     lr=1e-6,
     reward_mode="partial",
+    init_ckpt=None,
     run_name="baseline",
     runs_root="runs",
 ):
@@ -122,6 +123,7 @@ def train(
         "clip_eps": clip_eps,
         "lr": lr,
         "reward_mode": reward_mode,
+        "init_ckpt": init_ckpt,
         "run_name": run_name,
     }
     with open(f"{out_dir}/config.json", "w") as f:
@@ -129,6 +131,11 @@ def train(
     print(f"run: {out_dir}  config: {config}", flush=True)
 
     policy, ref, tokenizer, optimizer = setup(lr=lr)
+    if init_ckpt:
+        state = torch.load(init_ckpt, map_location="cpu")["model"]
+        policy.load_state_dict(state)
+        ref.load_state_dict(state)
+        print(f"initialized from {init_ckpt}", flush=True)
     rng = random.Random(seed)
 
     metrics_path = f"{out_dir}/metrics.jsonl"
